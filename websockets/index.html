@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>WebSocket Live Test Rig</title>
+    <style>
+      body {
+        font-family: sans-serif;
+        padding: 20px;
+        background: #121212;
+        color: #fff;
+      }
+      #log {
+        background: #000;
+        padding: 10px;
+        height: 300px;
+        overflow-y: scroll;
+        border: 1px solid #333;
+      }
+      .status-on {
+        color: #00ff00;
+      }
+      .status-off {
+        color: #ff0000;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>WebSocket Broadcast Console</h1>
+    <!-- Connection status indicator -->
+    <p id="status" class="status-off">Connecting....</p>
+
+    <!-- Message input form -->
+    <form id="message-form">
+      <input
+        type="text"
+        id="message-input"
+        placeholder="Send Cargo..."
+        required
+      />
+      <button type="submit">Deploy Message</button>
+    </form>
+
+    <!-- Live log display area -->
+    <h3>Live Stream Logs:</h3>
+    <pre id="log"></pre>
+  </body>
+
+  <script>
+    const statusEl = document.getElementById("status"); // Status text element
+    const log = document.getElementById("log"); // Log display area
+    const input = document.getElementById("message-input"); // Message input field
+
+    // ========================================================================
+    // STEP 1: INITIATE THE WEBSOCKET HANDSHAKE
+    // ========================================================================
+    // The WebSocket constructor automatically:
+    // 1. Opens a TCP connection to the server
+    // 2. Sends an HTTP Upgrade request with headers:
+    //    - Upgrade: websocket
+    //    - Connection: Upgrade
+    //    - Sec-WebSocket-Key: <random base64>
+    // 3. Waits for server's 101 Switching Protocols response
+    const socket = new WebSocket("ws://localhost:8080");
+
+    // 📝 Helper: Append timestamped messages to the log (newest at top)
+    const appendLog = (label, message) => {
+      const entry = `${new Date().toLocaleTimeString()} ${label} ${message}\n`;
+
+      // Prepend new entry so latest messages appear at top
+      log.textContent = entry + log.textContent;
+    };
+
+    // ========================================================================
+    // STEP 2: HANDLE 'open' EVENT — TUNNEL ESTABLISHED
+    // ========================================================================
+    // This fires ONLY after the server responds with 101 Switching Protocols
+    // and the WebSocket connection is fully upgraded from HTTP.
+    socket.addEventListener("open", () => {
+      statusEl.textContent = "CONNECTED: ws://localhost:8080";
+      statusEl.className = "status-on";
+
+      // Log the successful connection
+      appendLog("[SYSTEM]", "Tunnel Established.");
+    });
+
+    // ========================================================================
+    // STEP 3: HANDLE 'close' EVENT — TUNNEL TERMINATED
+    // ========================================================================
+    // Fires when:
+    // - Server closes the connection
+    // - Client navigates away / tab closes
+    // - Network interruption
+    socket.addEventListener("close", () => {
+      statusEl.textContent = "DISCONNECTED";
+      statusEl.className = "status-off";
+
+      // Log the disconnection
+      appendLog("[SYSTEM COLLAPSED]", "Tunnel Collapsed.");
+    });
+
+    // ========================================================================
+    // STEP 4: HANDLE 'message' EVENT — INCOMING DATA FROM SERVER
+    // ========================================================================
+    // Fires whenever the server sends a WebSocket frame to this client.
+    socket.addEventListener("message", (e) => {
+      appendLog("[RECEIVED]", e.data);
+    });
+
+    // ========================================================================
+    // STEP 5: HANDLE FORM SUBMISSION — SEND MESSAGE TO SERVER
+    // ========================================================================
+    document.getElementById("message-form").addEventListener("submit", (e) => {
+      e.preventDefault();
+
+      // 🔒 Safety check: Only send if WebSocket is in OPEN state
+      // WebSocket.readyState values:
+      // 0 = CONNECTING, 1 = OPEN, 2 = CLOSING, 3 = CLOSED
+      if (socket.readyState !== WebSocket.OPEN) {
+        appendLog("[Error]", "No Tunnel Found");
+      }
+
+      const msg = input.value.trim();
+      // Send the message to the server
+      // - Automatically encoded as a WebSocket text frame
+      // - Sent over the persistent TCP connection (no HTTP overhead)
+      socket.send(msg);
+      appendLog("[SENT]", msg);
+      input.value = "";
+    });
+  </script>
+</html>
