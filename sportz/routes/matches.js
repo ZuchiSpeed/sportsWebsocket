@@ -91,6 +91,12 @@ matchRouter.post("/", async (req, res) => {
       })
       .returning();  // Return the newly inserted row from the database
 
+      // Broadcast the newly created match to all connected WebSocket clients
+    // We check if the function exists in app.locals to prevent crashes if WS isn't attached
+      if(res.app.locals.broadcastMatchCreated) {
+        res.app.locals.broadcastMatchCreated(event)
+      }
+
     // Respond with 201 Created and the new match data
     res.status(201).json({ data: event });
   } catch (e) {
