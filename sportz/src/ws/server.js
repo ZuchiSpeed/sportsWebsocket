@@ -1,4 +1,5 @@
 import { WebSocket, WebSocketServer } from "ws";
+import { wsArcjet } from "../../arcjet.js";
 
 /**
  * Safely sends a JSON payload to a specific WebSocket client.
@@ -9,7 +10,7 @@ import { WebSocket, WebSocketServer } from "ws";
  */
 function sendJSON(socket, payload) {
   // Guard clause: Only proceed if the socket connection is actively open
-  if (socket.readyState === WebSocket.OPEN) return;
+  if (socket.readyState !== WebSocket.OPEN) return;
 
   socket.send(JSON.stringify(payload));
 }
@@ -49,9 +50,39 @@ export function attachWebSocketServer(server) {
   });
 
   // Handle new client connections
-  wss.on("connection", (socket) => {
-    // Initialize custom heartbeat tracking property
-    socket.isAlive = true;
+  wss.on("connection", async (socket) => {
+   server.on('upgrade', async (req, socket, head) => {
+        const { pathname } = new URL(req.url, `http://${req.headers.host}`);
+
+        if (pathname !== '/ws') {
+            return;
+        }
+
+        if (wsArcjet) {
+            try {
+                const decision = await wsArcjet.protect(req);
+
+                if (decision.isDenied()) {
+                    if (decision.reason.isRateLimit()) {
+                        socket.write('HTTP/1.1 429 Too Many Requests\r\n\r\n');
+                    } else {
+                        socket.write('HTTP/1.1 403 Forbidden\r\n\r\n');
+                    }
+                    socket.destroy();
+                    return;
+                }
+            } catch (e) {
+                console.error('WS upgrade protection error', e);
+                socket.write('HTTP/1.1 500 Internal Server Error\r\n\r\n');
+                socket.destroy();
+                return;
+            }
+        }
+
+        wss.handleUpgrade(req, socket, head, (ws) => {
+            wss.emit('connection', ws, req);
+        });
+    });
 
     // Listen for "pong" frames sent by the client in response to our "ping"
     socket.on("pong", () => {
