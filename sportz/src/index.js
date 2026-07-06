@@ -3,6 +3,7 @@ import http from "http";
 import { matchRouter } from "../routes/matches.js";
 import { attachWebSocketServer } from "./ws/server.js";
 import { securityMiddleware } from "../arcjet.js";
+import { commentaryRouter } from "../routes/commentary.js";
 
 // Define server configuration from environment variables or fallback to defaults
 const PORT = Number(process.env.PORT || 8000);
@@ -21,6 +22,9 @@ app.use(securityMiddleware())
 
 // Mount the matches router at the /matches endpoint
 app.use("/matches", matchRouter);
+
+// Mount the commentary router at the /commentary endpoint
+app.use("/matches/:id/commentary", commentaryRouter);
 
 // Attach the WebSocket server to the HTTP server
 // This upgrades HTTP connections to WS connections when the client requests the /ws path
