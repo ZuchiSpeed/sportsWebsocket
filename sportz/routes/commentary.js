@@ -128,6 +128,10 @@ commentaryRouter.post("/", async (req, res) => {
       })
       .returning();
 
+    if (res.app.locals.broadcastCommentary) {
+      res.app.locals.broadcastCommentary(result.matchId, result);
+    }
+
     // 3. Real-time WebSocket Integration
     // Check if the broadcast function is registered in Express app locals.
     // This allows the router to remain decoupled from the specific WebSocket implementation.

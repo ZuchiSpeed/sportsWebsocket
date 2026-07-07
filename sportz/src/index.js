@@ -28,8 +28,9 @@ app.use("/matches/:id/commentary", commentaryRouter);
 
 // Attach the WebSocket server to the HTTP server
 // This upgrades HTTP connections to WS connections when the client requests the /ws path
-const { broadcastMatchCreated } = attachWebSocketServer(server);
+const { broadcastMatchCreated, broadcastCommentary } = attachWebSocketServer(server);
 app.locals.broadcastMatchCreated = broadcastMatchCreated; // Expose the broadcast function for use in match creation
+app.locals.broadcastCommentary = broadcastCommentary;
 
 server.listen(PORT, HOST, () => {
   // Dynamically format the console output based on whether we are binding to localhost or a specific IP
